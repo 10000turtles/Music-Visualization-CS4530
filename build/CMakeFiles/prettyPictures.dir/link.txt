@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/prettyPictures.dir/prettyPictures.cpp.o  -o prettyPictures  -lstdc++fs -lglfw -lGLEW -lGLU -lGL 

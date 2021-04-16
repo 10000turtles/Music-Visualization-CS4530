@@ -1,0 +1,5 @@
+-song FSharpMinor
+
+-readPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/
+
+-record true

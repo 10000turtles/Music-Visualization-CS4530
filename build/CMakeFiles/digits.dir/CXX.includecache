@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/oem/Documents/Code/Music-Visualization-CS4530/src/digits.cpp
+GL/glew.h
+-
+GLFW/glfw3.h
+-
+algorithm
+-
+cassert
+-
+fstream
+-
+glm/glm.hpp
+-
+glm/gtc/matrix_transform.hpp
+-
+iostream
+-
+random
+-
+sstream
+-
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+string
+-
+vector
+-
+

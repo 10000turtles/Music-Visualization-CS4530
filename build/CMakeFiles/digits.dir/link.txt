@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/digits.dir/digits.cpp.o  -o digits  -lglfw -lGLEW -lGLU -lGL 
