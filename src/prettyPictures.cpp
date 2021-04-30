@@ -42,13 +42,62 @@ double getXPos(vector<int> wk, int f) {
   return getXPos(wk, f - 1) + 0.5;
 }
 
-enum ShapeType { SQUARE, CIRCLE, STAR };
+std::string output_of_system_command(const char *cmd) {
+  char buffer[128];
+  std::string result = "";
+  std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+  if (!pipe)
+    throw std::runtime_error("popen() failed!");
+  while (!feof(pipe.get())) {
+    if (fgets(buffer, 128, pipe.get()) != NULL)
+      result += buffer;
+  }
+  return result;
+}
+bool windowExists(std::string window_name) {
+  std::string command = "xwininfo -name \"" + window_name + "\"";
+  std::string output = output_of_system_command(command.c_str());
+  // to check if the window exists we look to see if we are given an xwininfo
+  // error. TODO: I would like to find a better way to do this.
+  if (output.find("xwininfo: error:") != std::string::npos) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+bool screenshot(std::string window_name, std::string screenshot_name) {
+  if (windowExists(window_name)) {
+    // if the window hasn't crashed, bring it into focus and screenshot it
+    std::string command =
+        //"wmctrl -R " + window_name + " &&
+        " scrot " + screenshot_name + " -u";
+    std::system(command.c_str());
+    return true;
+  } else {
+    std::cout << "Attempted to screenshot a closed window." << std::endl;
+    return false;
+  }
+}
+
+enum ShapeType { DOT, CIRCLE };
+enum InstrumentType { PIANO, BASS, DRUMS, SOLO, BACKGROUND };
 
 class Args {
 public:
   string configPath;
-  string song;
-  string readPath;
+
+  string pianoPath;
+  string bassPath;
+  string drumsPath;
+  string soloPath;
+  string backgroundPath;
+
+  int pianoOffset;
+  int bassOffset;
+  int drumsOffset;
+  int soloOffset;
+  int backgroundOffset;
 
   bool record;
 
@@ -61,13 +110,46 @@ public:
     string temp;
 
     while (f >> temp) {
-      if (temp == string("-song")) {
+
+      if (temp == string("-pianoPath")) {
         f >> temp;
-        song = string(temp);
+        pianoPath = string(temp);
       }
-      if (temp == string("-readPath")) {
+      if (temp == string("-bassPath")) {
         f >> temp;
-        readPath = string(temp);
+        bassPath = string(temp);
+      }
+      if (temp == string("-drumsPath")) {
+        f >> temp;
+        drumsPath = string(temp);
+      }
+      if (temp == string("-soloPath")) {
+        f >> temp;
+        soloPath = string(temp);
+      }
+      if (temp == string("-backgroundPath")) {
+        f >> temp;
+        backgroundPath = string(temp);
+      }
+      if (temp == string("-pianoOffset")) {
+        f >> temp;
+        pianoOffset = stoi(temp);
+      }
+      if (temp == string("-bassOffset")) {
+        f >> temp;
+        bassOffset = stoi(temp);
+      }
+      if (temp == string("-drumsOffset")) {
+        f >> temp;
+        drumsOffset = stoi(temp);
+      }
+      if (temp == string("-soloOffset")) {
+        f >> temp;
+        soloOffset = stoi(temp);
+      }
+      if (temp == string("-backgroundOffset")) {
+        f >> temp;
+        backgroundOffset = stoi(temp);
       }
       if (temp == string("-record")) {
         f >> temp;
@@ -75,15 +157,6 @@ public:
           record = true;
         }
       }
-    }
-    fs::directory_iterator entry;
-    if (song != string("")) {
-      entry = fs::directory_iterator(readPath + song);
-    } else {
-      cout << "Error: No song name passed" << endl;
-    }
-    if (entry == end(entry)) {
-      cout << "Error: No songs in folder/no folder" << endl;
     }
   }
 };
@@ -102,11 +175,12 @@ public:
   }
 };
 
+bool comp(Note a, Note b) { return a.time < b.time; };
 class ShapeData {
 public:
   int note;
 
-  vector<vec3> mesh;
+  vector<pair<vec3, bool>> mesh;
 
   vec3 center;
   vec3 offColor;
@@ -119,20 +193,26 @@ public:
   GLuint vertexbuffer;
   GLuint colorbuffer;
 
+  InstrumentType inst;
+
   vector<Note> notes;
 
   ShapeData() {}
-  ShapeData(int n, vector<vec3> m, GLenum d, vec3 cen, vec3 col,
-            vector<Note> no) {
+  ShapeData(int n, vector<pair<vec3, bool>> m, GLenum d, vec3 cen, vec3 Offcol,
+            vec3 Oncol, vector<Note> no, InstrumentType i) {
+
     note = n;
     mesh = m;
     drawtype = d;
     center = cen;
-    onColor = col;
-    offColor.x = col.x * 0.2;
-    offColor.y = col.y * 0.2;
-    offColor.z = col.z * 0.2;
+    onColor = Oncol;
+    offColor = Offcol;
     notes = no;
+    inst = i;
+
+    sort(notes.begin(), notes.end(), comp);
+    if (inst != BACKGROUND)
+      notes = subVec(notes, 1, notes.size());
   }
 
   void setup() {
@@ -143,13 +223,13 @@ public:
     colors = new GLfloat[mesh.size() * DIM];
 
     for (int i = 0; i < mesh.size() * DIM; i += DIM) {
-      vertices[i] =
-          mapp(mesh[i / DIM].x, -1, 1, -borderProportion, borderProportion);
+      vertices[i] = mapp(mesh[i / DIM].first.x, -1, 1, -borderProportion,
+                         borderProportion);
 
-      vertices[i] = mapp(vertices[i], -1, 1, -1, 0);
-      vertices[i + 1] =
-          mapp(mesh[i / DIM].y, -1, 1, -borderProportion, borderProportion);
-      vertices[i + 1] = mapp(vertices[i + 1], -1, 1, 0, 1);
+      vertices[i] = mapp(vertices[i], -1, 1, -1, 1);
+      vertices[i + 1] = mapp(mesh[i / DIM].first.y, -1, 1, -borderProportion,
+                             borderProportion);
+      vertices[i + 1] = mapp(vertices[i + 1], -1, 1, -1, 1);
       vertices[i + 2] = 0;
       colors[i] = offColor.x;
       colors[i + 1] = offColor.y;
@@ -187,18 +267,140 @@ public:
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
   }
-  void on() {
+
+  // t is a double from 0 to 1. It will weight the on color with the off color
+  // based off of t. (1 is full onColor, 0 is full offColor, 1/2 is the average
+  // color)
+  void on(double t) {
+    assert(t >= 0);
+    assert(t <= 1);
     for (int i = 0; i < mesh.size() * DIM; i += DIM) {
-      colors[i] = onColor.x;
-      colors[i + 1] = onColor.y;
-      colors[i + 2] = onColor.z;
+      if (mesh[i / DIM].second) {
+        colors[i] = onColor.x * t + offColor.x * (1 - t);
+        colors[i + 1] = onColor.y * t + offColor.y * (1 - t);
+        colors[i + 2] = onColor.z * t + offColor.z * (1 - t);
+      } else {
+        colors[i] = 0;
+        colors[i + 1] = 0;
+        colors[i + 2] = 0;
+      }
     }
   }
-  void off() {
-    for (int i = 0; i < mesh.size() * DIM; i += DIM) {
-      colors[i] = offColor.x;
-      colors[i + 1] = offColor.y;
-      colors[i + 2] = offColor.z;
+
+  void update(double time, double pedal) {
+    int lowerIndex = 0;
+    if ((notes.size() == 0 || time < notes[0].time)) {
+      for (int i = 0; i < mesh.size() * DIM; i += DIM) {
+
+        colors[i] = 0;
+        colors[i + 1] = 0;
+        colors[i + 2] = 0;
+      }
+      return;
+    }
+
+    for (int i = 1; i < notes.size(); i++) {
+      if (notes[i].time > time) {
+        break;
+      }
+      lowerIndex = i;
+    }
+    if (inst == BACKGROUND) {
+      if (notes[lowerIndex].onOff) {
+        double t;
+        double lastNote = notes[lowerIndex].time;
+        double nextNote = notes[lowerIndex + 1].time;
+        double x = time - lastNote;
+        double y = time - nextNote;
+        if (abs(x) < 1) {
+          t = (tanh(x) / tanh(1) + 1) / 2;
+        } else if (abs(y) < 1) {
+          t = (-tanh(y) / tanh(1) + 1) / 2;
+        } else {
+          t = 1;
+        }
+        if (t > 1)
+          t = 1;
+        if (t < 0)
+          t = 0;
+
+        on(t);
+      } else {
+        double t;
+        double lastNote = notes[lowerIndex].time;
+        double nextNote = notes[lowerIndex + 1].time;
+        double x = time - lastNote;
+        double y = time - nextNote;
+        if (abs(x) < 1) {
+          t = ((-tanh(x)) / tanh(1) + 1) / 2;
+        }
+        if (abs(y) < 1) {
+          t = (-tanh((-y)) / tanh(1) + 1) / 2;
+        } else {
+          t = 0;
+        }
+
+        if (t > 1)
+          t = 1;
+        if (t < 0)
+          t = 0;
+
+        on(t);
+      }
+    } else if (inst == SOLO) {
+      if (notes[lowerIndex].onOff) {
+        double t = 1 - (0.05 * (time - notes[lowerIndex].time));
+        // decaying Note
+        // cout << "onNote: " << t << " " << time << " " <<
+        // notes[lowerIndex].time
+        //      << " " << note << endl;
+        on(t);
+      } else {
+        if (pedal > 0.1) {
+          double t = 1 - (0.05 * (time - notes[lowerIndex - 1].time));
+        }
+        double a = notes[lowerIndex].time;
+
+        double b =
+            1.0 /
+            (6 * (notes[lowerIndex].time - notes[lowerIndex - 1].time) + 1);
+
+        double t = -3.1 * (time - a) + b;
+        if (t < 0) {
+          t = 0;
+        }
+        // cout << "offNote: " << t << " " << time << " " <<
+        // notes[lowerIndex].time
+        //      << " " << note << endl;
+        on(t);
+      }
+    } else {
+      if (notes[lowerIndex].onOff) {
+        double t = 1 / (3 * (time - notes[lowerIndex].time) + 1);
+        // decaying Note
+        // cout << "onNote: " << t << " " << time << " " <<
+        // notes[lowerIndex].time
+        //      << " " << note << endl;
+        on(t);
+      } else {
+        if (pedal > 0.1) {
+          double t = 1 / (3 * (time - notes[lowerIndex - 1].time) + 1);
+        }
+        double a = notes[lowerIndex].time;
+
+        double b =
+            1.0 /
+            (6 * (notes[lowerIndex].time - notes[lowerIndex - 1].time) + 1);
+
+        double t = -3.1 * (time - a) + b;
+        if (t < 0) {
+          t = 0;
+        }
+        // cout << "offNote: " << t << " " << time << " " <<
+        // notes[lowerIndex].time
+        //      << " " << note << endl;
+        on(t);
+      }
     }
   }
 };
@@ -237,24 +439,80 @@ private:
   bool m_bRunning = false;
 };
 
-vector<vec3> makeMesh(ShapeType shape, vec3 center, double scale) {
-  if (shape == CIRCLE) {
-    vector<vec3> mesh;
-    for (int i = 0; i < CIRCLE_DEFINITION; i++) {
+vector<pair<vec3, bool>> makeMesh(ShapeType shape, vec3 center, double scale) {
 
-      mesh.push_back(vec3(cos(i * 2 * M_PI / CIRCLE_DEFINITION) * scale,
-                          sin(i * 2 * M_PI / CIRCLE_DEFINITION) * scale, 0) +
-                     center);
+  vector<pair<vec3, bool>> mesh;
+  if (shape == CIRCLE) {
+    for (int i = 0; i < CIRCLE_DEFINITION; i++) {
+      mesh.push_back(
+          make_pair(vec3(cos(i * 2 * M_PI / CIRCLE_DEFINITION) * scale,
+                         sin(i * 2 * M_PI / CIRCLE_DEFINITION) * scale, 0) +
+                        center,
+                    true));
     }
     return mesh;
   }
-  return {{0, 0, 0}};
+  if (shape == DOT) {
+    for (int i = 0; i < CIRCLE_DEFINITION; i++) {
+      mesh.push_back(make_pair(
+          vec3(cos(i * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0,
+               sin(i * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0, 0) +
+              center,
+          true));
+
+      mesh.push_back(make_pair(
+          vec3(cos((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0,
+               sin((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0, 0) +
+              center,
+          true));
+
+      mesh.push_back(make_pair(center, true));
+
+      mesh.push_back(make_pair(
+          vec3(cos(i * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0,
+               sin(i * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0, 0) +
+              center,
+          true));
+      mesh.push_back(
+          make_pair(vec3(cos(i * 2 * M_PI / CIRCLE_DEFINITION) * scale,
+                         sin(i * 2 * M_PI / CIRCLE_DEFINITION) * scale, 0) +
+                        center,
+                    false));
+      mesh.push_back(make_pair(
+          vec3(cos((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale,
+               sin((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale, 0) +
+              center,
+          false));
+
+      mesh.push_back(make_pair(
+          vec3(cos(i * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0,
+               sin(i * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0, 0) +
+              center,
+          true));
+
+      mesh.push_back(make_pair(
+          vec3(cos((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale,
+               sin((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale, 0) +
+              center,
+          false));
+
+      mesh.push_back(make_pair(
+          vec3(cos((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0,
+               sin((i + 1) * 2 * M_PI / CIRCLE_DEFINITION) * scale / 2.0, 0) +
+              center,
+          true));
+    }
+    return mesh;
+  }
+  return {make_pair(vec3(0, 0, 0), true)};
 }
 
-vector<vec3> pianoMesh(ShapeType shape, int key, int minKey, int maxKey) {
-  vec3 center = {0, 0, 0};
-  double leftBorder = -0.7;
-  double rightBorder = 0.7;
+vector<pair<vec3, bool>> pianoMesh(ShapeType shape, int key, int minKey,
+                                   int maxKey, vec3 center, double leftBorder,
+                                   double rightBorder) {
+  // vec3 center = {0, 0, 0};
+  // double leftBorder = -0.7;
+  // double rightBorder = 0.7;
   vector<int> whiteKeys = {21, 23, 24,  26,  28,  29,  31,  33, 35, 36, 38,
                            40, 41, 43,  45,  47,  48,  50,  52, 53, 55, 57,
                            59, 60, 62,  64,  65,  67,  69,  71, 72, 74, 76,
@@ -264,11 +522,6 @@ vector<vec3> pianoMesh(ShapeType shape, int key, int minKey, int maxKey) {
   double scale = 0.9 * (rightBorder - leftBorder) /
                  (getXPos(whiteKeys, maxKey) - getXPos(whiteKeys, minKey) + 1);
 
-  // vector<int> blackKeys = {22, 25, 27, 30, 32, 34, 37, 39, 42, 44,  46, 49,
-  //                          51, 54, 56, 58, 61, 63, 66, 68, 70, 73,  75, 78,
-  //                          80, 82, 85, 87, 90, 92, 94, 97, 99, 102, 104,
-  //                          106};
-
   vec3 wbadj = {mapp(getXPos(whiteKeys, key), getXPos(whiteKeys, minKey),
                      getXPos(whiteKeys, maxKey), leftBorder, rightBorder),
                 find(whiteKeys.begin(), whiteKeys.end(), key) == whiteKeys.end()
@@ -276,63 +529,310 @@ vector<vec3> pianoMesh(ShapeType shape, int key, int minKey, int maxKey) {
                     : 0,
                 0};
 
-  vector<vec3> mesh = makeMesh(shape, center + wbadj, scale / 2);
+  vector<pair<vec3, bool>> mesh = makeMesh(shape, center + wbadj, scale / 2);
 
   return mesh;
+}
+
+vector<pair<vec3, bool>> drumMesh(ShapeType shape, int key, vec3 center,
+                                  double leftBorder, double rightBorder) {
+  double scale = (leftBorder - rightBorder) * 0.25;
+  double space = 0.05 * scale;
+  vector<pair<vec3, bool>> mesh;
+  cout << key << " " << center.x << ", " << center.y << endl;
+  if (key == 36) {
+    mesh =
+        makeMesh(shape, center - vec3(scale * 0.75, scale * (-0.75) + space, 0),
+                 scale * 3.1 / 4);
+  }
+  if (key == 37) {
+    mesh = makeMesh(
+        shape, center - vec3(scale * (-0.5) + space, scale * (-0.5) + space, 0),
+        scale / 2);
+  }
+  if (key == 38) {
+    mesh =
+        makeMesh(shape, center - vec3(scale * (-0.2) - space, scale * (-1), 0),
+                 scale / 4);
+  }
+  if (key == 39) {
+    mesh = makeMesh(shape,
+                    center - vec3(scale * (-1.2) + 2 * space, scale * (-1), 0),
+                    scale / 4);
+  }
+  if (key == 42) {
+    mesh =
+        makeMesh(shape, center - vec3(scale * (-1) + space, scale * (0.5), 0),
+                 scale / 2);
+  }
+  if (key == 44) {
+    mesh = makeMesh(shape,
+                    center - vec3(scale * (-1.3) + space, scale * (-0.25), 0),
+                    scale / 4);
+  }
+  if (key == 46) {
+    mesh = makeMesh(
+        shape, center - vec3(scale * (-0.7) + space, scale * (1) + space, 0),
+        scale / 4);
+  }
+  if (key == 41) {
+    mesh = makeMesh(shape, center - vec3(0, scale * (0.5), 0), scale / 2);
+  }
+  if (key == 43) {
+    mesh = makeMesh(shape, center - vec3(scale * (1) + space, scale * (0.5), 0),
+                    scale / 2);
+  }
+  if (key == 45) {
+    mesh = makeMesh(shape, center - vec3(space + scale * 2, 0, 0), scale / 2);
+  }
+  if (key == 47) {
+    mesh =
+        makeMesh(shape, center - vec3(space + scale * 2, -1 * scale - space, 0),
+                 scale / 2);
+  }
+  return mesh;
+}
+
+vector<pair<vec3, bool>> backgroundMesh(ShapeType shape, int key, vec3 center,
+                                        double leftBorder, double rightBorder) {
+  double scale = (leftBorder - rightBorder);
+
+  return makeMesh(shape, center, scale / 2);
 }
 
 class Instrument {
 public:
   vector<ShapeData> shapes;
   map<int, vector<Note>> notes;
+  vector<Note> pedal;
 
-  Instrument(Args a) {
+  Instrument(Args a, InstrumentType t) {
     MidiFile file;
-    file.read(a.readPath + a.song + "/Melody.mid");
 
-    int minKey = 108;
-    int maxKey = 21;
+    if (t == PIANO) {
+      file.read(a.pianoPath);
+      int minKey = 108;
+      int maxKey = 21;
 
-    for (int i = 3; i < file.getEventCount(0); i++) {
-      notes[file.getEvent(0, i).getP1()].push_back(
-          Note(file.getEvent(0, i).getP0() == 144, file.getTimeInSeconds(0, i),
-               file.getEvent(0, i).getP2()));
-      if (file.getEvent(0, i).getP1() < minKey) {
-        minKey = file.getEvent(0, i).getP1();
+      for (int i = 3; i < file.getEventCount(0); i++) {
+        if (file.getEvent(0, i).getP0() != 128 &&
+            file.getEvent(0, i).getP0() !=
+                144) // If not a note pressed or released (pedal or pitch
+                     // bender)
+        {
+          pedal.push_back(Note(file.getEvent(0, i).getP0() == 144,
+                               file.getTimeInSeconds(0, i) + a.pianoOffset * 2,
+                               file.getEvent(0, i).getP2()));
+          continue;
+        }
+        notes[file.getEvent(0, i).getP1()].push_back(
+            Note(file.getEvent(0, i).getP0() == 144,
+                 file.getTimeInSeconds(0, i) + a.pianoOffset * 2,
+                 file.getEvent(0, i).getP2()));
+        if (file.getEvent(0, i).getP1() < minKey) {
+          minKey = file.getEvent(0, i).getP1();
+        }
+        if (file.getEvent(0, i).getP1() > maxKey) {
+          maxKey = file.getEvent(0, i).getP1();
+        }
       }
-      if (file.getEvent(0, i).getP1() > maxKey) {
-        maxKey = file.getEvent(0, i).getP1();
+      for (int i = minKey; i <= maxKey; i++) {
+        notes[i].push_back(Note(true, 0, 0));
+      }
+      for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
+           i++) {
+        shapes.push_back(ShapeData((*i).first,
+                                   pianoMesh(DOT, (*i).first, minKey, maxKey,
+                                             vec3(0, 0.5, 0), -0.85, -0.05),
+                                   GL_TRIANGLES, vec3(0, 0, 0), vec3(0, 0.0, 0),
+                                   vec3(0, 1, 0), (*i).second, t));
       }
     }
-    for (int i = minKey; i < maxKey; i++) {
-      notes[i].push_back(Note(true, 0, 0));
-    }
+    if (t == BASS) {
+      file.read(a.bassPath);
+      int minKey = 108;
+      int maxKey = 21;
 
-    for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
-         i++) {
-      shapes.push_back(
-          ShapeData((*i).first, pianoMesh(CIRCLE, (*i).first, minKey, maxKey),
-                    GL_LINE_LOOP, vec3(0, 0, 0), vec3(0, 1, 0), (*i).second));
+      for (int i = 3; i < file.getEventCount(0); i++) {
+        if (file.getEvent(0, i).getP0() != 128 &&
+            file.getEvent(0, i).getP0() !=
+                144) // If not a note pressed or released (pedal or pitch
+                     // bender)
+        {
+          pedal.push_back(Note(file.getEvent(0, i).getP0() == 144,
+                               file.getTimeInSeconds(0, i) + a.bassOffset * 2,
+                               file.getEvent(0, i).getP2()));
+          continue;
+        }
+        notes[file.getEvent(0, i).getP1()].push_back(
+            Note(file.getEvent(0, i).getP0() == 144,
+                 file.getTimeInSeconds(0, i) + a.bassOffset * 2,
+                 file.getEvent(0, i).getP2()));
+        if (file.getEvent(0, i).getP1() < minKey) {
+          minKey = file.getEvent(0, i).getP1();
+        }
+        if (file.getEvent(0, i).getP1() > maxKey) {
+          maxKey = file.getEvent(0, i).getP1();
+        }
+      }
+      for (int i = minKey; i <= maxKey; i++) {
+        notes[i].push_back(Note(true, 0, 0));
+      }
+      for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
+           i++) {
+        shapes.push_back(ShapeData((*i).first,
+                                   pianoMesh(DOT, (*i).first, minKey, maxKey,
+                                             vec3(0, -0.5, 0), -0.85, -0.05),
+                                   GL_LINE_LOOP, vec3(0, 0, 0), vec3(0, 0, 0.0),
+                                   vec3(1, 0, 0), (*i).second, t));
+      }
+    }
+    if (t == DRUMS) {
+      file.read(a.drumsPath);
+      int minKey = 36;
+      int maxKey = 47;
+      for (int i = 3; i < file.getEventCount(0); i++) {
+        // if (file.getEvent(0, i).getP0() != 128 &&
+        //     file.getEvent(0, i).getP0() !=
+        //         144) // If not a note pressed or released (pedal or pitch
+        // bender)
+        // {
+        //   pedal.push_back(Note(file.getEvent(0, i).getP0() == 144,
+        //                        file.getTimeInSeconds(0, i) + a.drumsOffset
+        //                        * 2, file.getEvent(0, i).getP2()));
+        //   continue;
+        // }
+        notes[file.getEvent(0, i).getP1()].push_back(
+            Note(file.getEvent(0, i).getP0() == 144,
+                 file.getTimeInSeconds(0, i) + a.drumsOffset * 2,
+                 file.getEvent(0, i).getP2()));
+        cout << file.getTimeInSeconds(0, i) << " " << a.drumsOffset * 2 << endl;
+      }
+      for (int i = minKey; i <= maxKey; i++) {
+        notes[i].push_back(Note(true, 0, 0));
+      }
+      for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
+           i++) {
+        vec3 colorOverlap = vec3(1, 1.0 / 3, 1.0 / 3);
+        if ((*i).first == 37 || (*i).first == 42) {
+          colorOverlap = vec3(1, 1.0 / 3, 1.0 / 4);
+        }
+        if ((*i).first == 38 || (*i).first == 44) {
+          colorOverlap = vec3(1, 1.0 / 4, 1.0 / 3);
+        }
+        shapes.push_back(ShapeData(
+            (*i).first,
+            drumMesh(DOT, (*i).first, vec3(0.35, -0.5, 0), 0.05, 0.85),
+            GL_LINE_LOOP, vec3(0, 0, 0), vec3(0, 0, 0), colorOverlap,
+            (*i).second, t));
+
+        for (int s = 0; s < (*i).second.size(); s++) {
+          cout << (*i).second[s].onOff << " " << (*i).second[s].time << endl;
+        }
+        cout << endl;
+      }
+    }
+    if (t == SOLO) {
+      file.read(a.soloPath);
+      int minKey = 108;
+      int maxKey = 21;
+
+      for (int i = 3; i < file.getEventCount(0); i++) {
+        if (file.getEvent(0, i).getP0() != 128 &&
+            file.getEvent(0, i).getP0() !=
+                144) // If not a note pressed or released (pedal or pitch
+                     // bender)
+        {
+          pedal.push_back(Note(file.getEvent(0, i).getP0() == 144,
+                               file.getTimeInSeconds(0, i) + a.soloOffset * 2,
+                               file.getEvent(0, i).getP2()));
+          continue;
+        }
+        notes[file.getEvent(0, i).getP1()].push_back(
+            Note(file.getEvent(0, i).getP0() == 144,
+                 file.getTimeInSeconds(0, i) + a.soloOffset * 2,
+                 file.getEvent(0, i).getP2()));
+        if (file.getEvent(0, i).getP1() < minKey) {
+          minKey = file.getEvent(0, i).getP1();
+        }
+        if (file.getEvent(0, i).getP1() > maxKey) {
+          maxKey = file.getEvent(0, i).getP1();
+        }
+      }
+      for (int i = minKey; i <= maxKey; i++) {
+        notes[i].push_back(Note(true, 0, 0));
+      }
+      for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
+           i++) {
+        shapes.push_back(ShapeData((*i).first,
+                                   pianoMesh(DOT, (*i).first, minKey, maxKey,
+                                             vec3(0, 0.5, 0), 0.05, 0.85),
+                                   GL_LINE_LOOP, vec3(0, 0, 0),
+                                   vec3(0.0, 0, 0.0), vec3(1, 1.0 / 3, 0),
+                                   (*i).second, t));
+      }
+    }
+    if (t == BACKGROUND) {
+      file.read(a.backgroundPath);
+      int minKey = 108;
+      int maxKey = 21;
+
+      for (int i = 3; i < file.getEventCount(0); i++) {
+        notes[file.getEvent(0, i).getP1()].push_back(
+            Note(file.getEvent(0, i).getP0() == 144,
+                 file.getTimeInSeconds(0, i) + a.backgroundOffset * 2,
+                 file.getEvent(0, i).getP2()));
+        if (file.getEvent(0, i).getP1() < minKey) {
+          minKey = file.getEvent(0, i).getP1();
+        }
+        if (file.getEvent(0, i).getP1() > maxKey) {
+          maxKey = file.getEvent(0, i).getP1();
+        }
+      }
+      for (int i = minKey; i <= maxKey; i++) {
+        notes[i].push_back(Note(false, 0, 0));
+      }
+      for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
+           i++) {
+        vec3 color(0.9, 0.2, 0.3);
+        if ((*i).first != 50) {
+          continue;
+        }
+        // if ((*i).first == 38) {
+        //   color = vec3(0.02, 0.4, 0.8);
+        // }
+        // if ((*i).first == 39) {
+        //   color = vec3(0.82, 0.4, 0.1);
+        // }
+        // if ((*i).first == 43) {
+        //   color = vec3(0.22, 0.5, 0.7);
+        // }
+        // if ((*i).first == 45) {
+        //   color = vec3(0.62, 0.7, 0.4);
+        // }
+        shapes.push_back(ShapeData(
+            (*i).first, backgroundMesh(DOT, (*i).first, vec3(0, 0, 0), -1, 1),
+            GL_LINE_LOOP, vec3(0, 0, 0), vec3(0.02, 0.4, 0.8), color,
+            (*i).second, t));
+      }
     }
   }
 
-  void update(double pTime, double cTime) {
-    for (map<int, vector<Note>>::iterator i = notes.begin(); i != notes.end();
-         i++) {
-      for (int j = 0; j < (*i).second.size(); j++) {
-        if ((*i).second[j].time < cTime && (*i).second[j].time > pTime) {
-          for (int k = 0; k < shapes.size(); k++) {
-            if (shapes[k].note == (*i).first) {
-              if ((*i).second[j].onOff) {
-                shapes[k].on();
-              } else {
-                shapes[k].off();
-              }
-              break;
-            }
-          }
+  void update(double cTime) {
+    int lowerIndex = 0;
+    double pedalDown = 0;
+    if (!pedal.size() == 0) {
+      for (int i = 0; i < pedal.size(); i++) {
+        if (pedal[i].time > cTime) {
+          break;
         }
+        lowerIndex = i;
       }
+      pedalDown = pedal[lowerIndex].intensity / 128.0;
+    }
+
+    for (int i = 0; i < shapes.size(); i++) {
+      shapes[i].update(cTime, pedalDown);
     }
   }
 
@@ -347,26 +847,26 @@ public:
     }
   }
 
-  void on(int note) {
-    ShapeData *temp;
-    for (int i = 0; i < shapes.size(); i++) {
-      if (note == shapes[i].note) {
-        temp = &shapes[i];
-        break;
-      }
-    }
-    temp->on();
-  }
-  void off(int note) {
-    ShapeData *temp;
-    for (int i = 0; i < shapes.size(); i++) {
-      if (note == shapes[i].note) {
-        temp = &shapes[i];
-        break;
-      }
-    }
-    temp->off();
-  }
+  // void on(int note) {
+  //   ShapeData *temp;
+  //   for (int i = 0; i < shapes.size(); i++) {
+  //     if (note == shapes[i].note) {
+  //       temp = &shapes[i];
+  //       break;
+  //     }
+  //   }
+  //   temp->on();
+  // }
+  // void off(int note) {
+  //   ShapeData *temp;
+  //   for (int i = 0; i < shapes.size(); i++) {
+  //     if (note == shapes[i].note) {
+  //       temp = &shapes[i];
+  //       break;
+  //     }
+  //   }
+  //   temp->off();
+  // }
 };
 
 float mapp(float value, float a, float b, float c, float d) {
@@ -470,7 +970,7 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
   // Initialize GLFW
   if (!glfwInit()) {
     std::cerr << "ERROR: Failed to initialize GLFW" << std::endl;
-    exit(1);
+    std::exit(1);
   }
 
   // We will ask it to specifically open an OpenGL 3.2 context
@@ -482,11 +982,13 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
 
   // Create a GLFW window
   int size = 1000;
-  GLFWwindow *window = glfwCreateWindow(size, size, "ACG HW0 IFS", NULL, NULL);
+  const char *windowName = "PrettyPictures";
+
+  GLFWwindow *window = glfwCreateWindow(size, size, windowName, NULL, NULL);
   if (!window) {
     std::cerr << "ERROR: Failed to open GLFW window" << std::endl;
     glfwTerminate();
-    exit(1);
+    std::exit(1);
   }
   glfwMakeContextCurrent(window);
 
@@ -495,7 +997,7 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
   if (glewInit() != GLEW_OK) {
     std::cerr << "ERROR: Failed to initialize GLEW" << std::endl;
     glfwTerminate();
-    exit(1);
+    std::exit(1);
   }
 
   std::cout << "-------------------------------------------------------"
@@ -522,42 +1024,67 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
   glEnable(GL_POINT_SMOOTH);
   glPointSize(3.0f);
 
-  Timer timer;
-  timer.start();
+  // Timer timer;
+  // timer.start();
+  double bpm = 102;
+  double fps = 60;
+  int totalFrames = 16000;
+  int counter = 0;
+  double currentTime = 0;
+  // double prevTime = timer.elapsedSeconds();
+  std::string command =
+      "rm /home/oem/Documents/Code/Music-Visualization-CS4530/src/"
+      "screenshots/*";
+  std::system(command.c_str());
 
-  double currentTime = timer.elapsedSeconds();
-  double prevTime = timer.elapsedSeconds();
-
-  while (!glfwWindowShouldClose(window)) {
+  while (!glfwWindowShouldClose(window) && counter < totalFrames) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // 1st attribute buffer : vertices
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glUseProgram(programID);
 
-    currentTime = timer.elapsedSeconds();
-
     for (int i = 0; i < instruments.size(); i++) {
-      instruments[i].update(prevTime, currentTime);
+      instruments[i].update(currentTime);
       instruments[i].draw();
     }
 
-    prevTime = currentTime;
-
+    currentTime += bpm / (120.0 * fps);
+    // prevTime = currentTime;
+    if (a.record)
+      screenshot(string(windowName),
+                 "/home/oem/Documents/Code/Music-Visualization-CS4530/src/"
+                 "screenshots/img-" +
+                     to_string(counter) + ".png");
     // Swap buffers
     glfwSwapBuffers(window);
+
+    // Screenshot
+
+    counter++;
+    cout << counter << endl;
     glfwPollEvents();
   }
-
+  if (a.record) {
+    // ffmpeg -framerate 5 -i img-%02d.png video.avi
+    command = "ffmpeg -framerate " + to_string(fps) +
+              " -i /home/oem/Documents/Code/Music-Visualization-CS4530/src/"
+              "screenshots/img-%d.png  video.avi";
+    std::system(command.c_str());
+  }
   // Close OpenGL window and terminate GLFW
   glfwDestroyWindow(window);
   glfwTerminate();
-  exit(EXIT_SUCCESS);
+  std::exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char *args[]) {
   vector<Instrument> inst;
   Args a(args[1]);
-  inst.push_back(Instrument(a));
+  inst.push_back(Instrument(a, PIANO));
+  inst.push_back(Instrument(a, BASS));
+  inst.push_back(Instrument(a, DRUMS));
+  inst.push_back(Instrument(a, SOLO));
+  inst.push_back(Instrument(a, BACKGROUND));
   OpenGLStuff(inst, a);
 }
 

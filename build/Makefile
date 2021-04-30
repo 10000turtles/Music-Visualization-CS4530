@@ -111,19 +111,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named digits
-
-# Build rule for target.
-digits: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 digits
-.PHONY : digits
-
-# fast build rule for target.
-digits/fast:
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/build
-.PHONY : digits/fast
-
-#=============================================================================
 # Target rules for targets named prettyPictures
 
 # Build rule for target.
@@ -311,33 +298,6 @@ Options.cpp.s:
 	$(MAKE) -f CMakeFiles/midifile.dir/build.make CMakeFiles/midifile.dir/Options.cpp.s
 .PHONY : Options.cpp.s
 
-digits.o: digits.cpp.o
-
-.PHONY : digits.o
-
-# target to build an object file
-digits.cpp.o:
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/digits.cpp.o
-.PHONY : digits.cpp.o
-
-digits.i: digits.cpp.i
-
-.PHONY : digits.i
-
-# target to preprocess a source file
-digits.cpp.i:
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/digits.cpp.i
-.PHONY : digits.cpp.i
-
-digits.s: digits.cpp.s
-
-.PHONY : digits.s
-
-# target to generate assembly for a file
-digits.cpp.s:
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/digits.cpp.s
-.PHONY : digits.cpp.s
-
 prettyPictures.o: prettyPictures.cpp.o
 
 .PHONY : prettyPictures.o
@@ -373,7 +333,6 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
-	@echo "... digits"
 	@echo "... prettyPictures"
 	@echo "... midifile"
 	@echo "... Binasc.o"
@@ -394,9 +353,6 @@ help:
 	@echo "... Options.o"
 	@echo "... Options.i"
 	@echo "... Options.s"
-	@echo "... digits.o"
-	@echo "... digits.i"
-	@echo "... digits.s"
 	@echo "... prettyPictures.o"
 	@echo "... prettyPictures.i"
 	@echo "... prettyPictures.s"

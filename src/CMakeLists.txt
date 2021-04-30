@@ -81,15 +81,8 @@ add_library(midifile STATIC ${SRCS} ${HDRS})
 add_executable(prettyPictures 
 	prettyPictures.cpp
 )
-add_executable(digits 
-	digits.cpp
-)
-
 target_link_libraries(prettyPictures stdc++fs)
 target_link_libraries(prettyPictures
-	${ALL_LIBS}
-)
-target_link_libraries(digits
 	${ALL_LIBS}
 )
 

@@ -1,5 +1,4 @@
 /home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles/rebuild_cache.dir
 /home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles/edit_cache.dir
-/home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles/digits.dir
 /home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles/prettyPictures.dir
 /home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles/midifile.dir

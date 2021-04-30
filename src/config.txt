@@ -1,5 +1,14 @@
--song FSharpMinor
 
--readPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/
+-pianoPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/ReadyWednesday/Piano.mid
+-bassPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/ReadyWednesday/Bass.mid
+-drumsPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/ReadyWednesday/Drums.mid
+-soloPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/ReadyWednesday/Solo.mid
+-backgroundPath /home/oem/Documents/Code/Music-Visualization-CS4530/src/midiFiles/ReadyWednesday/Background.mid
+
+-pianoOffset 0
+-bassOffset 37
+-drumsOffset 36
+-soloOffset 52
+-backgroundOffset 53
 
 -record true

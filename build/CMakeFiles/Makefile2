@@ -53,7 +53,6 @@ CMAKE_BINARY_DIR = /home/oem/Documents/Code/Music-Visualization-CS4530/build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/digits.dir/all
 all: CMakeFiles/prettyPictures.dir/all
 all: CMakeFiles/midifile.dir/all
 
@@ -65,38 +64,10 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/digits.dir/clean
 clean: CMakeFiles/prettyPictures.dir/clean
 clean: CMakeFiles/midifile.dir/clean
 
 .PHONY : clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/digits.dir
-
-# All Build rule for target.
-CMakeFiles/digits.dir/all:
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/depend
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles --progress-num=1,2 "Built target digits"
-.PHONY : CMakeFiles/digits.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/digits.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles 2
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/digits.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles 0
-.PHONY : CMakeFiles/digits.dir/rule
-
-# Convenience name for target.
-digits: CMakeFiles/digits.dir/rule
-
-.PHONY : digits
-
-# clean rule for target.
-CMakeFiles/digits.dir/clean:
-	$(MAKE) -f CMakeFiles/digits.dir/build.make CMakeFiles/digits.dir/clean
-.PHONY : CMakeFiles/digits.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/prettyPictures.dir
@@ -105,7 +76,7 @@ CMakeFiles/digits.dir/clean:
 CMakeFiles/prettyPictures.dir/all:
 	$(MAKE) -f CMakeFiles/prettyPictures.dir/build.make CMakeFiles/prettyPictures.dir/depend
 	$(MAKE) -f CMakeFiles/prettyPictures.dir/build.make CMakeFiles/prettyPictures.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles --progress-num=10,11 "Built target prettyPictures"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles --progress-num=8,9 "Built target prettyPictures"
 .PHONY : CMakeFiles/prettyPictures.dir/all
 
 # Build rule for subdir invocation for target.
@@ -132,7 +103,7 @@ CMakeFiles/prettyPictures.dir/clean:
 CMakeFiles/midifile.dir/all:
 	$(MAKE) -f CMakeFiles/midifile.dir/build.make CMakeFiles/midifile.dir/depend
 	$(MAKE) -f CMakeFiles/midifile.dir/build.make CMakeFiles/midifile.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles --progress-num=3,4,5,6,7,8,9 "Built target midifile"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/oem/Documents/Code/Music-Visualization-CS4530/build/CMakeFiles --progress-num=1,2,3,4,5,6,7 "Built target midifile"
 .PHONY : CMakeFiles/midifile.dir/all
 
 # Build rule for subdir invocation for target.
