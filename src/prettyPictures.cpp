@@ -981,7 +981,7 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   // Create a GLFW window
-  int size = 1000;
+  int size = 1200;
   const char *windowName = "PrettyPictures";
 
   GLFWwindow *window = glfwCreateWindow(size, size, windowName, NULL, NULL);
@@ -1026,9 +1026,9 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
 
   // Timer timer;
   // timer.start();
-  double bpm = 102;
+  double bpm = 128;
   double fps = 60;
-  int totalFrames = 16000;
+  int totalFrames = 14000;
   int counter = 0;
   double currentTime = 0;
   // double prevTime = timer.elapsedSeconds();
@@ -1068,7 +1068,7 @@ void OpenGLStuff(vector<Instrument> instruments, Args a) {
     // ffmpeg -framerate 5 -i img-%02d.png video.avi
     command = "ffmpeg -framerate " + to_string(fps) +
               " -i /home/oem/Documents/Code/Music-Visualization-CS4530/src/"
-              "screenshots/img-%d.png  video.avi";
+              "screenshots/img-%d.png -vb 20M video.avi";
     std::system(command.c_str());
   }
   // Close OpenGL window and terminate GLFW
